@@ -115,7 +115,6 @@ int main() {
 
           	int prev_size = previous_path_x.size();
 
-          	// predict ego car's future position
           	if (prev_size > 0){
           		car_s = end_path_s; //car's "future" position at the end of previous path
           	}
