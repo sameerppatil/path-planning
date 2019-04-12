@@ -1,37 +1,21 @@
 #include "vehicles.h"
 
-Vehicles::Vehicles(int lane, double velocity, int cycles_since_lane_change)
+Vehicles::Vehicles(int lane, double intended_velocity, int cycles_since_lane_change)
 {
-    my_speed = velocity;
+    my_speed = intended_velocity;
     my_lane = lane;
     my_cyles_since_lane_change = cycles_since_lane_change;
 }
 
 void Vehicles::Update_localization(double car_x, double car_y, double car_s, double car_d,
-        double car_yaw, double car_speed, double check_speed_mph, int path_size, bool is_car_too_close, string state)
+        double car_yaw, double car_speed, double check_speed_mph, int path_size, bool is_car_too_close)
 {
-    this->my_x = car_x;
-    this->my_y = car_y;
-    this->my_s = car_s;
-    this->my_d = car_d;
-    this->my_yaw = car_yaw;
-    this->my_speed = car_speed;
-    this->state = state;
-}
-
-double Vehicles::Calculate_speed(double vx, double vy)
-{
-    return sqrt(vx*vx + vy*vy);
-}
-
-double Vehicles::Predict_s(double neighbour_speed, int size, double neighbour_s)
-{
-    return neighbour_s += ((double)size * 0.2 * neighbour_speed);
-}
-
-void Vehicles::Generate_costs(vector<vector <double>> sensor_fusion)
-{
-
+    my_x = car_x;
+    my_y = car_y;
+    my_s = car_s;
+    my_d = car_d;
+    my_yaw = car_yaw;
+    my_speed = car_speed;
 }
 
 void Vehicles::NextLane(vector<vector <double>> sensor_fusion)
@@ -42,13 +26,21 @@ void Vehicles::NextLane(vector<vector <double>> sensor_fusion)
         float d = sensor_fusion[i][6];
         if (d < (2+4*my_lane+2) && d > (2+4*my_lane-2))
         {
-            double neighbour_speed = Calculate_speed(sensor_fusion[i][3], sensor_fusion[i][4]);
-            double neighbour_s = Predict_s(neighbour_speed, this->path_size, sensor_fusion[i][5]);
+            double vx = sensor_fusion[i][3];
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt(vx*vx+vy*vy);
+            double check_car_s = sensor_fusion[i][5];
 
-            if ((neighbour_s > my_s) && ((neighbour_s - my_s) < 30))
+            check_car_s += ((double)path_size*.02*check_speed); // using previous points to project s value outwards in time
+
+            //check s values greater than mine and s gap is smaller than 30 meters (arbitrary value)
+            if ((check_car_s > my_s) && ((check_car_s - my_s) < 30))
             {
+                // do some logic here, e.g. lower ref velocity so we don't crash into the car in front of us,
+                // could also set the flag to try to change lanes
+                //ref_velocity = 29.5; // mph
                 is_car_too_close = true;
-                check_speed_mph = neighbour_speed * 2.24; // set ref speed for slowing down & convert from m/s to mph
+                check_speed_mph = check_speed * 2.24; // set ref speed for slowing down & convert from m/s to mph
 
                 // ********* BEHAVIOR PLANNER ******
 
