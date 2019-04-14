@@ -8,13 +8,14 @@
 #include "helpers.h"
 #include "json.hpp"
 #include "spline.h"
+#include "core.h"
 
 // for convenience
 using nlohmann::json;
-using std::string;
-using std::vector;
+// using std::string;
+// using std::vector;
 
-using namespace std;
+//using namespace std;
 int debugOn;
 
 int main() {
@@ -58,8 +59,10 @@ int main() {
   int lane = 1;
   double ref_vel = 5.0;
 
+  Core myCore = Core(lane, ref_vel, debugOn);
+
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel]
+               &map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, &myCore]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -108,42 +111,13 @@ int main() {
             car_s = end_path_s; //car's "future" position at the end of previous path
           }
 
-          bool too_close = false;
+          myCore.updateData(lane, ref_vel);
+          myCore.predictState(sensor_fusion, car_s, previous_size);
 
-          for (int i = 0; i < sensor_fusion.size(); i++)
-          {
-              //car is in my lane
-              float d = sensor_fusion[i][6];
-              if (d < (2+4*lane+2) && d > (2+4*lane-2))
-              {
-                double vx = sensor_fusion[i][3];
-                double vy = sensor_fusion[i][4];
-                double check_speed = sqrt(vx*vx+vy*vy);
-                double check_car_s = sensor_fusion[i][5];
-
-                check_car_s += ((double)previous_size*.02*check_speed); // using previous points to project s value outwards in time
-
-                //check s values greater than mine and s gap is smaller than 30 meters (arbitrary value)
-                if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
-                {
-                  // do some logic here, e.g. lower ref velocity so we don't crash into the car in front of us,
-                  // could also set the flag to try to change lane
-                  // ref_vel = 29.5; // mph
-                  cout << "Detected car in my lane, slowing down to " << ref_vel << endl;
-                  too_close = true;
-                }
-              }
-            }
-
-            if (too_close)
-            {
-              // decrease acc. by 5ms2
-              ref_vel -= .225;
-            }
-            else if (ref_vel < 49.5)
-            {
-              ref_vel += .225;
-            }
+            ref_vel = myCore.updatedResults.intendedSpeed;
+            lane = myCore.updatedResults.intendedLane;
+            // ref_vel, next_s and next_lane are the things needed to be delivered below
+            //
             // create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
             // later we will interpolate these waypoints with a spline and fill it in with more points
             vector<double> ptsx;
