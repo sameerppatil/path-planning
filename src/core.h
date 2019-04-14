@@ -30,6 +30,9 @@ public:
         int intendedLane = 0;
         bool tooClose = false;
     } updatedResults;
+
+private:
+    void generateTrajectories(vector <vector <double>> sensor_fusion, double car_s, int path_size);
 };
 
 #endif
